@@ -1,5 +1,6 @@
 import re
 import os
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -10,11 +11,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import pandas as pd
 
-
 EXCEL_FILE = "Problematic Withdrawals.xlsx"
 ITEM_COL = "steam_market_hash_name"
 PRICE_COL = "farmskins_price"
-
+TMP_FILE = EXCEL_FILE.replace(".xlsx", "_temp.xlsx")
 
 # =========================
 # URL + PRICE HELPERS
@@ -78,7 +78,6 @@ def extract_price_number(price: str | None):
 
 def get_skin_price(driver, skin_name):
     url = f"https://farmskins.com/items/{format_skin_url(skin_name)}"
-    print(f"Fetching: {skin_name}")
     driver.get(url)
 
     try:
@@ -137,6 +136,15 @@ def choose_sheets(xls: pd.ExcelFile) -> list[str]:
     idx = int(choice) - 1
     return [xls.sheet_names[idx]]
 
+def safe_replace(src, dst, retries=5, delay=1.0):
+    for i in range(retries):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            print(f"⚠ File locked, retry {i+1}/{retries}...")
+            time.sleep(delay)
+    raise PermissionError(f"Could not replace {dst} — file is locked")
 
 def process_sheets(sheet_names: list[str]):
     options = Options()
@@ -149,62 +157,74 @@ def process_sheets(sheet_names: list[str]):
     )
 
     xls = pd.ExcelFile(EXCEL_FILE)
-    writer = pd.ExcelWriter(
-        EXCEL_FILE,
-        engine="openpyxl",
-        mode="a",
-        if_sheet_exists="replace"
-    )
+    writer = None
+    wrote_anything = False
 
     try:
+        writer = pd.ExcelWriter(
+            TMP_FILE,
+            engine="openpyxl",
+            mode="w",
+        )
+
         total_sheets = len(sheet_names)
+        selected_index = 0
 
-        for sheet_idx, sheet in enumerate(sheet_names, start=1):
-            print(f"\n=== Sheet {sheet_idx}/{total_sheets}: {sheet} ===")
-
+        for sheet in xls.sheet_names:
             df = pd.read_excel(xls, sheet_name=sheet)
 
-            if ITEM_COL not in df.columns:
-                print("Skipping - no steam_market_hash_name")
-                continue
+            if sheet in sheet_names and ITEM_COL in df.columns:
+                selected_index += 1
+                print(f"\n=== Processing sheet: {sheet} ===")
 
-            items = df[ITEM_COL].astype(str).tolist()
-            total_items = len(items)
+                items = df[ITEM_COL].astype(str).tolist()
+                prices = []
+                success = 0
 
-            prices = []
-            success = 0
+                for i, item in enumerate(items, start=1):
+                    raw_price = get_skin_price(driver, item)
+                    price_number = extract_price_number(raw_price)
+                    prices.append(price_number if price_number is not None else "-")
 
-            for i, item in enumerate(items, start=1):
-                raw_price = get_skin_price(driver, item)
-                price_number = extract_price_number(raw_price)
-                prices.append(price_number)
+                    if price_number is not None:
+                        success += 1
 
-                if price_number is not None:
-                    success += 1
+                    print(
+                        f"[{selected_index}/{total_sheets}] "
+                        f"[{i}/{len(items)}] "
+                        f"{item} → {price_number}"
+                    )
 
-                print(
-                    f"[{sheet_idx}/{total_sheets}] "
-                    f"[{i}/{total_items}] "
-                    f"{item} → {price_number}"
-                )
+                df[PRICE_COL] = prices
+                wrote_anything = True
+                
+                print(f"✔ Sheet done: {success}/{len(items)} prices found")
 
-            df[PRICE_COL] = prices
             df.to_excel(writer, sheet_name=sheet, index=False)
 
-            print(
-                f"✔ Sheet done: {success}/{total_items} prices found"
-            )
+    except KeyboardInterrupt:
+        print("\n⚠ Interrupted by user. Excel file was NOT modified.")
+        driver.quit()
+        return
 
     finally:
-        writer.close()
         driver.quit()
-
+    if wrote_anything:
+        writer.close()
+        del writer
+        time.sleep(0.5)
+        safe_replace(TMP_FILE, EXCEL_FILE)
 
 # =========================
 # ENTRYPOINT
 # =========================
 
 def main():
+    if os.path.exists(TMP_FILE):
+        try:
+            os.remove(TMP_FILE)
+        except PermissionError:
+            pass
     if not os.path.exists(EXCEL_FILE):
         print(f"❌ File '{EXCEL_FILE}' not found")
         return
@@ -213,7 +233,7 @@ def main():
     sheets = choose_sheets(xls)
     process_sheets(sheets)
 
-    print("\n✅ Done. Prices added to Excel.")
+    print("\n✅ Done.")
 
 
 if __name__ == "__main__":

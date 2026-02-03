@@ -1,0 +1,7 @@
+# executables
+exe/
+dist/
+build/
+*.exe
+*.spec
+*.xlsx
