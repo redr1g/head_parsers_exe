@@ -8,7 +8,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 EXCEL_FILE = "Problematic Withdrawals.xlsx"
-TMP_FILE = EXCEL_FILE.replace(".xlsx", "_temp.xlsx")
 ITEM_COL = "steam_market_hash_name"
 PRICE_COL = "ggdrop_price"
 
@@ -63,16 +62,6 @@ def choose_sheets(xls: pd.ExcelFile) -> list[str]:
 
     return [xls.sheet_names[int(choice) - 1]]
 
-def safe_replace(src, dst, retries=5, delay=1.0):
-    for i in range(retries):
-        try:
-            os.replace(src, dst)
-            return
-        except PermissionError:
-            print(f"⚠ File locked, retry {i+1}/{retries}...")
-            time.sleep(delay)
-    raise PermissionError(f"Could not replace {dst} — file is locked")
-
 def process_sheets(sheet_names: list[str]):
     options = Options()
     options.add_argument("--headless=new")
@@ -86,7 +75,12 @@ def process_sheets(sheet_names: list[str]):
     name_input = driver.find_element(By.CSS_SELECTOR, 'input[placeholder="Name"]')
 
     xls = pd.ExcelFile(EXCEL_FILE)
-    writer = pd.ExcelWriter(TMP_FILE, engine="openpyxl", mode="w")
+    writer = pd.ExcelWriter(
+        EXCEL_FILE,
+        engine="openpyxl",
+        mode="a",
+        if_sheet_exists="replace"
+    )
 
     try:
         total = len(sheet_names)
@@ -123,21 +117,15 @@ def process_sheets(sheet_names: list[str]):
             df.to_excel(writer, sheet_name=sheet, index=False)
 
     except KeyboardInterrupt:
-        print("\n⚠ Interrupted by user. Excel file was NOT modified.")
+        print("\n⚠ Interrupted by user. Processing stopped.")
         driver.quit()
         writer.close()
-        if os.path.exists(TMP_FILE):
-            os.remove(TMP_FILE)
         return
 
     finally:
         driver.quit()
 
     writer.close()
-    del writer
-    time.sleep(0.5)
-
-    safe_replace(TMP_FILE, EXCEL_FILE)
 
 
 # =========================
@@ -148,12 +136,6 @@ def main():
     if not os.path.exists(EXCEL_FILE):
         print(f"❌ File '{EXCEL_FILE}' not found")
         return
-
-    if os.path.exists(TMP_FILE):
-        try:
-            os.remove(TMP_FILE)
-        except PermissionError:
-            pass
 
     xls = pd.ExcelFile(EXCEL_FILE)
     sheets = choose_sheets(xls)

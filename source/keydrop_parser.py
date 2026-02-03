@@ -18,7 +18,6 @@ from bs4 import BeautifulSoup
 # =========================
 
 EXCEL_FILE = "Problematic Withdrawals.xlsx"
-TMP_FILE = EXCEL_FILE.replace(".xlsx", "_temp.xlsx")
 ITEM_COL = "steam_market_hash_name"
 PRICE_COL = "keydrop_price"
 
@@ -144,16 +143,6 @@ def get_skin_price(driver, skin_name):
 # EXCEL WORKFLOW (AS BEFORE)
 # =========================
 
-def safe_replace(src, dst, retries=5, delay=1.0):
-    for i in range(retries):
-        try:
-            os.replace(src, dst)
-            return
-        except PermissionError:
-            print(f"⚠ File locked, retry {i+1}/{retries}...")
-            time.sleep(delay)
-    raise PermissionError(f"Could not replace {dst} — file is locked")
-
 def choose_sheets(xls: pd.ExcelFile) -> list[str]:
     print("\nFound sheets:")
     for i, s in enumerate(xls.sheet_names, start=1):
@@ -177,8 +166,13 @@ def process_sheets(sheet_names):
     )
 
     xls = pd.ExcelFile(EXCEL_FILE)
-    writer = pd.ExcelWriter(TMP_FILE, engine="openpyxl", mode="w")
-
+    writer = pd.ExcelWriter(
+        EXCEL_FILE,
+        engine="openpyxl",
+        mode="a",
+        if_sheet_exists="replace"
+    )
+    
     try:
         total = len(sheet_names)
         idx = 0
@@ -215,18 +209,12 @@ def process_sheets(sheet_names):
         print("\n⚠ Interrupted by user. Excel file was NOT modified.")
         writer.close()
         driver.quit()
-        if os.path.exists(TMP_FILE):
-            os.remove(TMP_FILE)
         return
 
     finally:
         driver.quit()
 
     writer.close()
-    del writer
-    time.sleep(0.5)
-
-    safe_replace(TMP_FILE, EXCEL_FILE)
 
 # =========================
 # ENTRYPOINT
@@ -236,12 +224,6 @@ def main():
     if not os.path.exists(EXCEL_FILE):
         print(f"❌ File '{EXCEL_FILE}' not found")
         return
-
-    if os.path.exists(TMP_FILE):
-        try:
-            os.remove(TMP_FILE)
-        except PermissionError:
-            pass
 
     xls = pd.ExcelFile(EXCEL_FILE)
     sheets = choose_sheets(xls)

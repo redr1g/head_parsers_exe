@@ -14,7 +14,6 @@ import pandas as pd
 EXCEL_FILE = "Problematic Withdrawals.xlsx"
 ITEM_COL = "steam_market_hash_name"
 PRICE_COL = "farmskins_price"
-TMP_FILE = EXCEL_FILE.replace(".xlsx", "_temp.xlsx")
 
 # =========================
 # URL + PRICE HELPERS
@@ -136,16 +135,6 @@ def choose_sheets(xls: pd.ExcelFile) -> list[str]:
     idx = int(choice) - 1
     return [xls.sheet_names[idx]]
 
-def safe_replace(src, dst, retries=5, delay=1.0):
-    for i in range(retries):
-        try:
-            os.replace(src, dst)
-            return
-        except PermissionError:
-            print(f"⚠ File locked, retry {i+1}/{retries}...")
-            time.sleep(delay)
-    raise PermissionError(f"Could not replace {dst} — file is locked")
-
 def process_sheets(sheet_names: list[str]):
     options = Options()
     options.add_argument("--headless=new")
@@ -162,10 +151,11 @@ def process_sheets(sheet_names: list[str]):
 
     try:
         writer = pd.ExcelWriter(
-            TMP_FILE,
-            engine="openpyxl",
-            mode="w",
-        )
+        EXCEL_FILE,
+        engine="openpyxl",
+        mode="a",
+        if_sheet_exists="replace"
+    )
 
         total_sheets = len(sheet_names)
         selected_index = 0
@@ -203,7 +193,7 @@ def process_sheets(sheet_names: list[str]):
             df.to_excel(writer, sheet_name=sheet, index=False)
 
     except KeyboardInterrupt:
-        print("\n⚠ Interrupted by user. Excel file was NOT modified.")
+        print("\n⚠ Interrupted by user. Processing stopped.")
         driver.quit()
         return
 
@@ -211,20 +201,12 @@ def process_sheets(sheet_names: list[str]):
         driver.quit()
     if wrote_anything:
         writer.close()
-        del writer
-        time.sleep(0.5)
-        safe_replace(TMP_FILE, EXCEL_FILE)
 
 # =========================
 # ENTRYPOINT
 # =========================
 
 def main():
-    if os.path.exists(TMP_FILE):
-        try:
-            os.remove(TMP_FILE)
-        except PermissionError:
-            pass
     if not os.path.exists(EXCEL_FILE):
         print(f"❌ File '{EXCEL_FILE}' not found")
         return
