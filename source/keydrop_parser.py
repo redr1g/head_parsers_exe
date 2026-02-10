@@ -206,7 +206,7 @@ def process_sheets(sheet_names):
             df.to_excel(writer, sheet_name=sheet, index=False)
 
     except KeyboardInterrupt:
-        print("\n⚠ Interrupted by user. Excel file was NOT modified.")
+        print("\n⚠ Interrupted by user. Processing stopped.")
         writer.close()
         driver.quit()
         return
