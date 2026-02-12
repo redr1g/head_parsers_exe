@@ -280,7 +280,7 @@ for case_index in range(total_cases):
 # DONE
 # =========================
 
-print("\n🎉 ВСІ КЕЙСИ ОБРОБЛЕНО")
+print("\n🎉 ALL CASES DONE")
 driver.quit()
 
 def save_distinct_csgoskins():
@@ -310,7 +310,6 @@ def merge_with_problematic():
 
     print("🔗 Merging csgoskins_price into Problematic Withdrawals.xlsx ...")
 
-    # 1. Lookup з g4skins
     g4_df = pd.read_excel(EXCEL_PATH)
     g4_df = (
         g4_df
@@ -359,7 +358,7 @@ def merge_with_problematic():
 
 def main():
     print("\n=== SELECT ACTION ===")
-    print("1. Save distinct g4skins.xlsx")
+    print("1. Save distinct csgoskins.xlsx")
     print("2. Merge with Problematic Withdrawals.xlsx")
 
     choice = input("\nEnter choice (1/2): ").strip()
@@ -367,8 +366,13 @@ def main():
     if choice == "1":
         save_distinct_csgoskins()
     elif choice == "2":
-        # save_distinct_g4skins()  # ⬅️ гарантія чистих даних
-        merge_with_problematic()
+        try:
+            merge_with_problematic()
+            if os.path.exists(EXCEL_PATH):
+                os.remove(EXCEL_PATH)
+                print(f"🗑 Removed file: {EXCEL_PATH}")
+        except Exception as e:
+            print(f"❌ Merge failed, file not deleted: {e}")
     else:
         print("❌ Invalid choice")
 

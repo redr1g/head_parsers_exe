@@ -271,8 +271,13 @@ def main():
     if choice == "1":
         save_distinct_g4skins()
     elif choice == "2":
-        # save_distinct_g4skins()  # ⬅️ гарантія чистих даних
-        merge_with_problematic()
+        try:
+            merge_with_problematic()
+            if os.path.exists(EXCEL_PATH):
+                os.remove(EXCEL_PATH)
+                print(f"🗑 Removed file: {EXCEL_PATH}")
+        except Exception as e:
+            print(f"❌ Merge failed, file not deleted: {e}")
     else:
         print("❌ Invalid choice")
 

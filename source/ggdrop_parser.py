@@ -6,6 +6,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 EXCEL_FILE = "Problematic Withdrawals.xlsx"
 ITEM_COL = "steam_market_hash_name"
@@ -66,7 +68,9 @@ def process_sheets(sheet_names: list[str]):
     options = Options()
     options.add_argument("--headless=new")
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=options)
 
     driver.get("https://ggdrop.com/items")
     driver.implicitly_wait(10)

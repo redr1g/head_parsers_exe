@@ -11,6 +11,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 
 from webdriver_manager.chrome import ChromeDriverManager
@@ -59,13 +60,23 @@ def get_skin_price(driver, search_input, skin_name: str):
     try:
         WebDriverWait(driver, 15).until(lambda d: search_input.is_enabled())
 
-        search_input.click()
-        search_input.send_keys(Keys.CONTROL + "a")
-        search_input.send_keys(Keys.BACKSPACE)
-        search_input.send_keys(skin_name)
-        search_input.send_keys(Keys.ENTER)
-
-        time.sleep(0.2)
+        # search_input.click()
+        # search_input.send_keys(Keys.CONTROL + "a")
+        # search_input.send_keys(Keys.BACKSPACE)
+        # search_input.send_keys(skin_name)
+        # search_input.send_keys(Keys.ENTER)
+        
+        ActionChains(driver) \
+            .click(search_input) \
+            .key_down(Keys.CONTROL) \
+            .send_keys("a") \
+            .key_up(Keys.CONTROL) \
+            .send_keys(Keys.DELETE) \
+            .send_keys(skin_name) \
+            .send_keys(Keys.ENTER) \
+            .perform()
+        
+        time.sleep(0.5)
 
         # NO ITEMS
         try:
