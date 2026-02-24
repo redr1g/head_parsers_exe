@@ -103,14 +103,10 @@ def get_skinclub_price(driver, skin_name):
 
             return float(txt.replace("$", "").replace(",", "").strip())
 
-        main_container = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "bg-brand-700.rounded-lg"))
-        )
-
-        py1_container = main_container.find_element(By.CLASS_NAME, "py-1")
-        rows = py1_container.find_elements(
-            By.XPATH,
-            ".//div[contains(@class,'flex') and contains(@class,'cursor-pointer')]"
+        rows = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, "a.flex.items-center.justify-between")
+            )
         )
 
         quality_from_name = ""
@@ -120,16 +116,16 @@ def get_skinclub_price(driver, skin_name):
         for row in rows:
             try:
                 quality_text = row.find_element(
-                    By.CLASS_NAME, "truncate.flex-1"
+                    By.CSS_SELECTOR, "span.truncate.flex-1"
                 ).text.strip().lower()
 
                 if "stattrak" in skin_name.lower():
                     price_span = row.find_element(
-                        By.CSS_SELECTOR, ".truncate.text-rarity-stattrak.shrink-0"
+                        By.CSS_SELECTOR, "span.text-rarity-stattrak"
                     )
                 else:
                     price_span = row.find_element(
-                        By.CSS_SELECTOR, ".truncate.text-primary-green-900.shrink-0"
+                        By.CSS_SELECTOR, "span.text-primary-green-900"
                     )
 
                 if quality_text == quality_from_name:
@@ -160,7 +156,7 @@ def choose_sheets(xls: pd.ExcelFile) -> list[str]:
 
 def process_sheets(sheet_names: list[str]):
     options = Options()
-    options.add_argument("--headless=new")
+    # options.add_argument("--headless=new")
     options.add_argument("--disable-blink-features=AutomationControlled")
 
     driver = webdriver.Chrome(
